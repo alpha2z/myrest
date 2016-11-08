@@ -62,7 +62,7 @@ ngx_http_lua_balancer_handler_file(ngx_http_request_t *r,
 
     rc = ngx_http_lua_cache_loadfile(r->connection->log, L,
                                      lscf->balancer.src.data,
-                                     lscf->balancer.src_key);
+                                     lscf->balancer.src_key, r);
     if (rc != NGX_OK) {
         return rc;
     }

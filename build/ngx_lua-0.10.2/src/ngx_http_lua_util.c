@@ -938,6 +938,130 @@ ngx_http_lua_request_cleanup(ngx_http_lua_ctx_t *ctx, int forcible)
 }
 
 
+#define ngx_http_lua_stat_key  "__ngx_lua_stat_key"
+
+static lua_State* 
+ngx_http_lua_get_stat_co(ngx_http_request_t *r, lua_State*L)
+{
+    int                              co_ref = LUA_NOREF;
+    int                              base;
+    lua_State                       *co;
+
+    base = lua_gettop(L);
+    lua_getglobal(L, ngx_http_lua_stat_key);
+    if (!lua_islightuserdata(L, -1))
+    {
+        if (!lua_isnil(L, -1))
+        {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                      "lua: global table k:%s occupied type(%d).", ngx_http_lua_stat_key, lua_type(L, -1));
+            goto done;
+        }
+        else
+        {
+            lua_pop(L, 1);
+            co = ngx_http_lua_new_thread(r, L, &co_ref);
+            if (co == NULL) {
+                ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                          "lua: failed to create new coroutine to stat");
+                goto done;
+            }
+            lua_pushlightuserdata(L, co);
+            lua_setglobal(L, ngx_http_lua_stat_key);
+        }
+    }
+    else
+    {
+        co = (lua_State *)lua_touserdata(L, -1);
+        lua_pop(L, 1);
+    }
+
+done:
+    lua_settop(L, base);
+    return co;
+}
+
+void
+ngx_http_lua_call_stat_func(ngx_http_request_t *r, lua_State* L, ngx_int_t rc)
+{
+    ngx_http_lua_main_conf_t        *lmcf;
+    ngx_int_t                        stat_rc;
+    int                              ret;
+    lua_State                       *co;
+
+    lmcf = ngx_http_get_module_main_conf(r, ngx_http_lua_module);
+    
+    stat_rc = ngx_http_lua_cache_loadfile(r->connection->log, L, (const u_char*)lmcf->stat_file.data,
+                         (const u_char*)lmcf->stat_file_key, r);
+
+    // ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "lua: L:%d stat_file:%s, stat_file_key:%s, stat_rc:%i, lua_isfunction(%d)", 
+    //     L, lmcf->stat_file.data, lmcf->stat_file_key, stat_rc, lua_isfunction(L, -1));
+
+    co = NULL;
+    if (stat_rc == NGX_OK)
+    {
+        co = ngx_http_lua_get_stat_co(r, L);
+        if (co == NULL) {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0,
+                      "lua: failed exec ngx_http_lua_get_stat_co stat.");
+            goto done;
+        }
+
+        // ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "lua: co_ptr stat_file:%s failed, co:%d", lmcf->stat_file.data, co);
+
+        lua_xmove(L, co, 1);
+
+        /*  set closure's env table to new coroutine's globals table */
+        ngx_http_lua_get_globals_table(co);
+        lua_setfenv(co, -2);
+
+        /*  save nginx request in coroutine globals table */
+        ngx_http_lua_set_req(co, r);
+
+        ret = lua_pcall(co, 0, 1, 0);
+        if (ret != 0)
+        {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "lua: pcall stat_file:%s failed, ret:%d", lmcf->stat_file.data, ret);
+            goto done;
+        }
+
+        if (!lua_istable(co, -1))
+        {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "lua: stat_file:%s not table failed, ret:%d", lmcf->stat_file.data, ret);
+            goto done;
+        }
+
+        lua_getfield(co, -1, "handle");
+        if (!lua_isfunction(co, -1))
+        {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "lua: stat_file:%s handle not func failed, ret:%d", lmcf->stat_file.data, ret);
+            goto done;
+        }
+
+        lua_pushnumber(co, -1);
+        lua_pushnumber(co, 20246);
+        lua_pushnumber(co, rc);
+        ret = lua_pcall(co, 3, 0, 0);
+        if (ret != 0)
+        {
+            ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "lua: call stat_file:%s handle failed, ret:%d", lmcf->stat_file.data, ret);
+        }
+done:
+        if (co != NULL)
+        {
+            lua_settop(co, 0);
+        }
+    }
+    else
+    {
+        ngx_log_error(NGX_LOG_ERR, r->connection->log, 0, "lua: load cache stat_file:%s failed, stat_rc:%d", lmcf->stat_file.data, stat_rc);
+    }
+
+    
+    return;
+}
+
+
 /*
  * description:
  *  run a Lua coroutine specified by ctx->cur_co_ctx->co
@@ -947,8 +1071,8 @@ ngx_http_lua_request_cleanup(ngx_http_lua_ctx_t *ctx, int forcible)
  *  NGX_ERROR:      error
  *  >= 200          HTTP status code
  */
-ngx_int_t
-ngx_http_lua_run_thread(lua_State *L, ngx_http_request_t *r,
+static ngx_int_t
+ngx_http_lua_real_run_thread(lua_State *L, ngx_http_request_t *r,
     ngx_http_lua_ctx_t *ctx, volatile int nrets)
 {
     ngx_http_lua_co_ctx_t   *next_coctx, *parent_coctx, *orig_coctx;
@@ -1494,6 +1618,18 @@ done:
     return NGX_OK;
 }
 
+ngx_int_t
+ngx_http_lua_run_thread(lua_State *L, ngx_http_request_t *r,
+    ngx_http_lua_ctx_t *ctx, volatile int nrets)
+{
+    ngx_int_t rc = ngx_http_lua_real_run_thread(L, r, ctx, nrets);
+    if (rc != NGX_OK)
+    {
+        ngx_http_lua_call_stat_func(r, L, rc);
+    }
+
+    return rc;
+}
 
 ngx_int_t
 ngx_http_lua_wev_handler(ngx_http_request_t *r)

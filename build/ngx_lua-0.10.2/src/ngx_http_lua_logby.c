@@ -152,7 +152,7 @@ ngx_http_lua_log_handler_file(ngx_http_request_t *r)
 
     /*  load Lua script file (w/ cache)        sp = 1 */
     rc = ngx_http_lua_cache_loadfile(r->connection->log, L, script_path,
-                                     llcf->log_src_key);
+                                     llcf->log_src_key, r);
     if (rc != NGX_OK) {
         return NGX_ERROR;
     }

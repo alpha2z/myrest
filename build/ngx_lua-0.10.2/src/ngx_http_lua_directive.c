@@ -441,7 +441,7 @@ ngx_http_lua_filter_set_by_lua_file(ngx_http_request_t *r, ngx_str_t *val,
 
     /*  load Lua script file (w/ cache)        sp = 1 */
     rc = ngx_http_lua_cache_loadfile(r->connection->log, L, script_path,
-                                     filter_data->key);
+                                     filter_data->key, r);
     if (rc != NGX_OK) {
         return NGX_ERROR;
     }
