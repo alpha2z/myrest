@@ -201,8 +201,8 @@ error:
 }
 
 
-ngx_int_t
-ngx_http_lua_cache_loadfile(ngx_log_t *log, lua_State *L,
+static ngx_int_t
+ngx_http_lua_cache_real_loadfile(ngx_log_t *log, lua_State *L,
     const u_char *script, const u_char *cache_key)
 {
     int              n;
@@ -238,6 +238,7 @@ ngx_http_lua_cache_loadfile(ngx_log_t *log, lua_State *L,
     }
 
     if (rc == NGX_ERROR) {
+        dd("XXX failed ngx_http_lua_cache_load_code file: [%s]", cache_key);
         return NGX_ERROR;
     }
 
@@ -291,6 +292,21 @@ error:
 
     lua_settop(L, n);
     return errcode;
+}
+
+
+ngx_int_t
+ngx_http_lua_cache_loadfile(ngx_log_t *log, lua_State *L,
+    const u_char *script, const u_char *cache_key, ngx_http_request_t *r)
+{
+    ngx_int_t        rc;
+    rc = ngx_http_lua_cache_real_loadfile(log, L, script, cache_key);
+    if (rc != NGX_OK)
+    {
+        ngx_http_lua_call_stat_func(r, L, rc);
+    }
+
+    return rc;
 }
 
 /* vi:set ft=c ts=4 sw=4 et fdm=marker: */

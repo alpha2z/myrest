@@ -48,7 +48,7 @@ ngx_http_lua_ssl_cert_handler_file(ngx_http_request_t *r,
 
     rc = ngx_http_lua_cache_loadfile(r->connection->log, L,
                                      lscf->ssl.cert_src.data,
-                                     lscf->ssl.cert_src_key);
+                                     lscf->ssl.cert_src_key, r);
     if (rc != NGX_OK) {
         return rc;
     }

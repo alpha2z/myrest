@@ -111,6 +111,12 @@ static ngx_command_t ngx_http_lua_cmds[] = {
       NGX_HTTP_MAIN_CONF_OFFSET,
       0,
       NULL },
+    { ngx_string("lua_stat_file"),
+      NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,
+      ngx_http_lua_stat_file,
+      NGX_HTTP_MAIN_CONF_OFFSET,
+      0,
+      NULL },
 
     { ngx_string("lua_package_path"),
       NGX_HTTP_MAIN_CONF|NGX_CONF_TAKE1,

@@ -234,7 +234,6 @@ ngx_http_lua_content_phase_post_read(ngx_http_request_t *r)
     }
 }
 
-
 ngx_int_t
 ngx_http_lua_content_handler_file(ngx_http_request_t *r)
 {
@@ -242,6 +241,7 @@ ngx_http_lua_content_handler_file(ngx_http_request_t *r)
     ngx_int_t                        rc;
     u_char                          *script_path;
     ngx_http_lua_loc_conf_t         *llcf;
+
     ngx_str_t                        eval_src;
 
     llcf = ngx_http_get_module_loc_conf(r, ngx_http_lua_module);
@@ -261,7 +261,7 @@ ngx_http_lua_content_handler_file(ngx_http_request_t *r)
 
     /*  load Lua script file (w/ cache)        sp = 1 */
     rc = ngx_http_lua_cache_loadfile(r->connection->log, L, script_path,
-                                     llcf->content_src_key);
+                                     llcf->content_src_key, r);
     if (rc != NGX_OK) {
         if (rc < NGX_HTTP_SPECIAL_RESPONSE) {
             return NGX_HTTP_INTERNAL_SERVER_ERROR;
@@ -272,7 +272,7 @@ ngx_http_lua_content_handler_file(ngx_http_request_t *r)
 
     /*  make sure we have a valid code chunk */
     ngx_http_lua_assert(lua_isfunction(L, -1));
-
+    
     return ngx_http_lua_content_by_chunk(L, r);
 }
 

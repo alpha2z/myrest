@@ -143,6 +143,8 @@ struct ngx_http_lua_main_conf_s {
 
     ngx_str_t            lua_path;
     ngx_str_t            lua_cpath;
+    ngx_str_t            stat_file;
+    u_char              *stat_file_key;
 
     ngx_cycle_t         *cycle;
     ngx_pool_t          *pool;

@@ -15,6 +15,8 @@
 char *ngx_http_lua_shared_dict(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
 char *ngx_http_lua_package_cpath(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
+char *ngx_http_lua_stat_file(ngx_conf_t *cf, ngx_command_t *cmd,
+    void *conf);
 char *ngx_http_lua_package_path(ngx_conf_t *cf, ngx_command_t *cmd,
     void *conf);
 char *ngx_http_lua_content_by_lua_block(ngx_conf_t *cf, ngx_command_t *cmd,

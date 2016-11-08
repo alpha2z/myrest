@@ -163,6 +163,8 @@ void ngx_http_lua_request_cleanup(ngx_http_lua_ctx_t *ctx, int foricible);
 
 void ngx_http_lua_request_cleanup_handler(void *data);
 
+void ngx_http_lua_call_stat_func(ngx_http_request_t *r, lua_State* L, ngx_int_t rc);
+
 ngx_int_t ngx_http_lua_run_thread(lua_State *L, ngx_http_request_t *r,
     ngx_http_lua_ctx_t *ctx, volatile int nret);
 

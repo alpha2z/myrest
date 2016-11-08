@@ -197,6 +197,38 @@ ngx_http_lua_package_cpath(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
     return NGX_CONF_OK;
 }
 
+char *
+ngx_http_lua_stat_file(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+{
+    ngx_http_lua_main_conf_t *lmcf = conf;
+    ngx_str_t                *value;
+    u_char                      *p;
+
+    if (lmcf->stat_file.len != 0) {
+        return "is duplicate";
+    }
+
+    dd("enter");
+
+    value = cf->args->elts;
+
+    lmcf->stat_file.len = value[1].len;
+    lmcf->stat_file.data = value[1].data;
+
+    p = ngx_palloc(cf->pool, NGX_HTTP_LUA_INLINE_KEY_LEN + 1);
+    if (p == NULL) {
+        return NGX_CONF_ERROR;
+    }
+
+    lmcf->stat_file_key = p;
+
+    p = ngx_copy(p, NGX_HTTP_LUA_INLINE_TAG, NGX_HTTP_LUA_INLINE_TAG_LEN);
+    p = ngx_http_lua_digest_hex(p, value[1].data, value[1].len);
+    *p = '\0';
+
+    return NGX_CONF_OK;
+}
+
 
 char *
 ngx_http_lua_package_path(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
@@ -409,7 +441,7 @@ ngx_http_lua_filter_set_by_lua_file(ngx_http_request_t *r, ngx_str_t *val,
 
     /*  load Lua script file (w/ cache)        sp = 1 */
     rc = ngx_http_lua_cache_loadfile(r->connection->log, L, script_path,
-                                     filter_data->key);
+                                     filter_data->key, r);
     if (rc != NGX_OK) {
         return NGX_ERROR;
     }
