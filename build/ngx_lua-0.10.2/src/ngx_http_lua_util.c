@@ -51,6 +51,8 @@
 #include "ngx_http_lua_socket_tcp.h"
 #include "ngx_http_lua_ssl_certby.h"
 
+#include "ngx_http_lua_cache.h"
+
 
 #if 1
 #undef ngx_http_lua_probe_info
@@ -990,6 +992,11 @@ ngx_http_lua_call_stat_func(ngx_http_request_t *r, lua_State* L, ngx_int_t rc)
     lua_State                       *co;
 
     lmcf = ngx_http_get_module_main_conf(r, ngx_http_lua_module);
+
+    if (lmcf->stat_file.data == NULL || lmcf->stat_file.len == 0)
+    {
+        return;
+    }
     
     stat_rc = ngx_http_lua_cache_loadfile(r->connection->log, L, (const u_char*)lmcf->stat_file.data,
                          (const u_char*)lmcf->stat_file_key, r);

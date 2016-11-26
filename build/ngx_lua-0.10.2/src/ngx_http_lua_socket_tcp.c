@@ -2719,6 +2719,8 @@ ngx_http_lua_socket_tcp_handler(ngx_event_t *ev)
                    "lua tcp socket handler for \"%V?%V\", wev %d", &r->uri,
                    &r->args, (int) ev->write);
 
+    // u->write_event_handler = ngx_http_lua_socket_send_handler;
+
     if (ev->write) {
         u->write_event_handler(r, u);
 
@@ -3009,6 +3011,8 @@ ngx_http_lua_socket_handle_write_success(ngx_http_request_t *r,
 
         ngx_log_debug0(NGX_LOG_DEBUG_HTTP, r->connection->log, 0,
                        "lua tcp socket waking up the current request (read)");
+
+        // r->write_event_handler = ngx_http_lua_content_wev_handler;
 
         r->write_event_handler(r);
     }
